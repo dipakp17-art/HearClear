@@ -52,7 +52,7 @@ class AccountActivity : Activity() {
         text("One account · one active phone", 21f)
         status = text(AccountClient.summary)
         text("48 hours free. Then one payment for lifetime access and all updates. ₹50 for the first 100 buyers, then ₹100, ₹150, ₹200 and ₹250 maximum. Your checkout shows the exact price.")
-        text("Accounts need internet to start and periodically while listening. Transferring replaces your old phone within 75 seconds. No extra transfer charge.")
+        text("Accounts need internet to start and periodically while listening. Transferring replaces your old phone within 75 seconds. No extra transfer charge.\nPayment approval: 10:00 AM–5:00 PM India time, every day. Payments submitted later wait for the next approval window.")
         id = field("Account ID (4–40 characters)")
         password = field("Password (at least 12 characters)", true)
         recovery = field("Recovery code (for transfer or password reset)", true)
@@ -79,7 +79,7 @@ class AccountActivity : Activity() {
                     if (isFinishing || isDestroyed) return@runOnUiThread
                     order = quote.getString("id"); uri = quote.getString("upi_uri")
                     qr.setImageBitmap(bitmap)
-                    payment.text = "One time: ₹${quote.getInt("amount")}\nPayee: ${quote.getString("payee")}\nUPI: ${quote.getString("upi_id")}\nOrder: $order\n${if (quote.getString("state") == "pending") "Payment submitted; awaiting manual approval. Do not pay again." else "Payment window: 30 minutes from quote creation. Submit the reference before it ends."}"
+                    payment.text = "One time: ₹${quote.getInt("amount")}\nPayee: ${quote.getString("payee")}\nUPI: ${quote.getString("upi_id")}\nOrder: $order\n${if (quote.getString("state") == "pending") "Payment submitted; awaiting manual approval (10 AM–5 PM India time). Do not pay again." else "Payment window: 30 minutes from quote creation. Submit the reference before it ends."}"
                     canPay = quote.getString("state") == "quoted"
                     payButton.isEnabled = canPay
                     submit.isEnabled = canPay
@@ -109,7 +109,7 @@ class AccountActivity : Activity() {
         reference = field("Transaction reference from payment app")
         submit = button("Submit payment for owner verification") {
             if (order.isBlank()) status.text = "Show payment details first."
-            else { val value = reference.text.toString(); work { AccountClient.receipt(this, order, value); canPay = false; "Submitted. The owner must verify settlement. Use Refresh to check approval; do not pay twice." } }
+            else { val value = reference.text.toString(); work { AccountClient.receipt(this, order, value); canPay = false; "Submitted. The owner verifies settlement between 10 AM and 5 PM India time. Later submissions wait until the next window. Use Refresh to check approval; do not pay twice." } }
         }.apply { isEnabled = false }
         button("Sign out") {
             stopService(Intent(this, ListeningService::class.java))

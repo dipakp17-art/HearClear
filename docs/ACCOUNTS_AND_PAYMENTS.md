@@ -20,7 +20,38 @@ The server stores a SHA-256 hash of the Android app-scoped ANDROID_ID to bind a 
 
 Sessions and recovery codes are stored hashed server-side. Passwords use salted PBKDF2-HMAC-SHA256 (600,000 iterations). The APK encrypts its session token with an Android Keystore AES-GCM key; no password is saved. Keys are not claimed to be hardware-backed on every phone. Account backups are disabled. There are no microphone uploads or listening analytics. The owner can report registered accounts, paid accounts and pending references.
 
-## Deploy the backend (owner/operator)
+## Windows laptop setup (owner/operator)
+
+Payment approvals are allowed **every day from 10:00 AM inclusive to 5:00 PM exclusive, India time (UTC+05:30)**. Users can register, listen if entitled, or submit payments at any time the server is reachable. Submissions after hours remain pending for the next window. The operator must still independently check settlement and run approval; no timed job checks bank accounts or automatically approves payments. This window does not restrict already-paid listening. Use automatic date/time on the laptop so trials and approval hours remain accurate.
+
+In a separate **HearClear** checkout on the laptop, open PowerShell and run:
+
+```powershell
+git fetch origin
+git switch feature/accounts-trial-payments
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\windows-server.ps1 -Action setup
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\windows-server.ps1 -Action start
+```
+
+Install Python 3.11+ first if setup reports it is missing. Setup creates a Python virtual environment, installs dependencies and stores receiving details/database under `%LOCALAPPDATA%\HearClearServer` outside the Git checkout. Existing settings are preserved. Public receiving details are prefilled from the owner: `9867918513@axl`, `deepk parmar`. No UPI PIN or bank credentials are used. The server remains on loopback; setup does not expose a router port, install a service, or publish an HTTPS address.
+
+Keep the start window open. The **laptop and its HTTPS tunnel/proxy must stay awake, running and online continuously** for this version's periodic listening checks. Approval hours alone do not mean the server should shut down at 5 PM. Closing the window, sleep, reboot or a network outage interrupts access when the 75-second lease expires. No Windows sleep settings or startup tasks are changed automatically. Until a stable public HTTPS endpoint is configured in the APK, phones cannot use this local server. A temporary tunnel is suitable only for testing because changing its hostname requires rebuilding the app's endpoint. Choose a stable domain/named tunnel before paid distribution. Never expose the admin console or database through the tunnel.
+
+Open a second PowerShell window in the same HearClear checkout to inspect pending users/orders:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\windows-server.ps1 -Action report
+```
+
+After checking real bank settlement, use the actual pending order ID, amount and reference (replace uppercase placeholders; they are not literal commands):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\windows-server.ps1 -Action approve -Order ORDER_ID -Amount 50 -Reference BANK_TRANSACTION_REFERENCE -SettlementChecked
+```
+
+This command fails outside approval hours; pending orders remain queued. The amount must equal the quoted amount, which may be ₹50/₹100/₹150/₹200/₹250. A duplicate approval of an already-paid order is a harmless retry even after hours. Run reports/approval only in your protected local console. Back up the database using SQLite's backup API or while the server is stopped; do not upload it to GitHub. For a reliable paid service, use an always-on host instead of a laptop that regularly sleeps.
+
+## Deploy the backend (Linux/operator alternative)
 
 Requires Python 3.11+, a persistent disk, an HTTPS domain and a trusted reverse proxy. No paid hosting or payment account has been created by this change. Use a dedicated service user and a virtual environment. Keep all payment details/secrets out of Git.
 

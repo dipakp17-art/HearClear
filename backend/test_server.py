@@ -4,14 +4,15 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from datetime import datetime
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-from server import ApiError, Handler, Server, Store, digest, price
+from server import ApiError, Handler, Server, Store, digest, price, approvals_open
 
 class EntitlementTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.now = 1000000
+        self.now = int(datetime.fromisoformat("2026-11-01T10:00:00+05:30").timestamp())
         self.store = Store(Path(self.tmp.name) / 'test.sqlite3', 'owner@example', 'Owner', lambda: self.now)
         self.data = dict(account='alice', password='correct-password-123', device='a' * 64, consent=True)
         self.created = self.store.register(self.data)
@@ -152,6 +153,27 @@ class EntitlementTest(unittest.TestCase):
         self.assertEqual(1800, self.store.quote(self.token)['remaining_seconds'])
         self.now += 300
         self.assertEqual(1500, self.store.quote(self.token)['remaining_seconds'])
+    def test_approval_window_uses_india_time_boundaries(self):
+        for value, expected in [('09:59:59', False), ('10:00:00', True), ('16:59:59', True), ('17:00:00', False), ('23:00:00', False)]:
+            timestamp = datetime.fromisoformat('2026-11-01T' + value + '+05:30').timestamp()
+            self.assertEqual(expected, approvals_open(timestamp), value)
+        # UTC 04:30 is 10:00 in India; host/laptop timezone has no effect.
+        self.assertTrue(approvals_open(datetime.fromisoformat('2026-11-01T04:30:00+00:00').timestamp()))
+    def test_after_hours_payment_waits_until_next_morning(self):
+        self.now = int(datetime.fromisoformat('2026-11-01T20:00:00+05:30').timestamp())
+        q = self.quote_and_submit()
+        self.assertFalse(q['approvals_open'])
+        with self.assertRaisesRegex(ValueError, 'Payment approvals are open only'):
+            self.store.approve(q['id'], 50, '123456789012')
+        self.assertFalse(self.store.status(self.token)['paid'])
+        self.assertEqual(1, len(self.store.report()['pending']))
+        self.now = int(datetime.fromisoformat('2026-11-02T10:00:00+05:30').timestamp())
+        self.store.approve(q['id'], 50, '123456789012')
+        self.assertTrue(self.store.status(self.token)['paid'])
+        self.now = int(datetime.fromisoformat('2026-11-02T22:00:00+05:30').timestamp())
+        # An already-paid account works outside approval hours; retry is idempotent.
+        self.store.approve(q['id'], 50, '123456789012')
+        self.assertEqual(75, self.store.status(self.token)['lease_seconds'])
     def test_http_qr_and_authorization(self):
         server = Server(('127.0.0.1', 0), Handler)
         server.store = self.store

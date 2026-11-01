@@ -14,12 +14,20 @@ import sqlite3
 import threading
 import time
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlencode
 
 TRIAL_SECONDS = 48 * 3600
 LEASE_SECONDS = 75
 SESSION_SECONDS = 30 * 86400
+INDIA = timezone(timedelta(hours=5, minutes=30))
+APPROVAL_HOURS = "10:00 AM–5:00 PM India time, every day"
+
+def approvals_open(timestamp):
+    hour = datetime.fromtimestamp(timestamp, INDIA).hour
+    return 10 <= hour < 17
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
  id TEXT PRIMARY KEY, salt TEXT NOT NULL, password TEXT NOT NULL,
@@ -154,7 +162,7 @@ class Store:
             remaining = max(0, row['trial_end'] - self.now())
             return dict(account=row['id'], paid=bool(row['paid']), trial_remaining_seconds=remaining,
                         lease_seconds=LEASE_SECONDS if row['paid'] else min(LEASE_SECONDS, remaining),
-                        updates_free=True)
+                        updates_free=True, approval_hours=APPROVAL_HOURS)
 
     def quote(self, token):
         if not self.upi or not self.payee:
@@ -177,6 +185,8 @@ class Store:
             result = dict(order)
             result['upi_uri'] = 'upi://pay?' + urlencode(dict(pa=self.upi, pn=self.payee, am=f"{order['amount']}.00", cu='INR', tn='HearClear ' + order['id']))
             result['remaining_seconds'] = max(0, order['expires'] - self.now())
+            result['approval_hours'] = APPROVAL_HOURS
+            result['approvals_open'] = approvals_open(self.now())
             result['payee'] = self.payee
             result['upi_id'] = self.upi
             return result
@@ -199,7 +209,7 @@ class Store:
             except sqlite3.IntegrityError:
                 raise ApiError('reference_used', 'That transaction reference is already submitted.', 409)
             self.audit(c, 'payment_submitted', user['id'], order['id'])
-        return dict(state='pending')
+        return dict(state='pending', approval_hours=APPROVAL_HOURS)
 
     def approve(self, oid, amount, reference):
         with self.db() as c:
@@ -209,7 +219,9 @@ class Store:
             if order['amount'] != amount or order['reference'] != reference.strip().upper():
                 raise ValueError('Settled amount/reference does not match the order.')
             if order['state'] == 'approved':
-                return  # idempotent, never increments the count twice
+                return  # idempotent; retrying an already-approved purchase changes nothing
+            if not approvals_open(self.now()):
+                raise ValueError('Payment approvals are open only ' + APPROVAL_HOURS + '. Submitted payments remain pending until the next window.')
             if c.execute('SELECT paid FROM accounts WHERE id=?', (order['account'],)).fetchone()[0]:
                 raise ValueError('Account is already paid; resolve duplicate payment manually.')
             c.execute("UPDATE orders SET state='approved' WHERE id=?", (oid,))
@@ -231,7 +243,7 @@ class Store:
 
     def report(self):
         with self.db() as c:
-            return dict(accounts=c.execute('SELECT COUNT(*) FROM accounts').fetchone()[0],
+            return dict(approval_hours=APPROVAL_HOURS, approvals_open=approvals_open(self.now()), accounts=c.execute('SELECT COUNT(*) FROM accounts').fetchone()[0],
                         paid=c.execute('SELECT COUNT(*) FROM accounts WHERE paid=1').fetchone()[0],
                         pending=[dict(r) for r in c.execute("SELECT id,account,amount,reference FROM orders WHERE state='pending' ORDER BY created")])
 
@@ -334,7 +346,10 @@ def main():
     elif args.command == 'approve':
         if not (args.settlement_checked and args.order and args.amount and args.reference):
             parser.error('Check bank settlement first; then supply --order --amount --reference --settlement-checked')
-        store.approve(args.order, args.amount, args.reference)
+        try:
+            store.approve(args.order, args.amount, args.reference)
+        except ValueError as e:
+            parser.exit(2, str(e) + '\n')
         print('Lifetime access approved.')
     else:
         if not args.order:
