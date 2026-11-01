@@ -9,33 +9,51 @@ import android.media.AudioManager
 import android.os.*
 import android.view.View
 import android.widget.*
+import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private lateinit var prefs: ListeningSettings
     private lateinit var boost: SeekBar
     private lateinit var toggle: Button
     private var startingAt = 0L
+    private val accountWorker = Executors.newSingleThreadExecutor()
+    private var checkingAccount = false
+    private var lastAccountCheck = 0L
     private val handler = Handler(Looper.getMainLooper())
     private val poll = object : Runnable {
-        override fun run() { render(); handler.postDelayed(this, 500) }
+        override fun run() { refreshAccountIfNeeded(); render(); handler.postDelayed(this, 500) }
     }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         volumeControlStream = AudioManager.STREAM_MUSIC
         prefs = ListeningSettings(this)
         setContentView(R.layout.activity_hearclear)
-        findViewById<Button>(R.id.shareAppButton).setOnClickListener {
-            val downloadUrl = "https://github.com/dipakp17-art/HearClear/releases/latest"
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "Try HearClear for experimental live listening assistance: $downloadUrl")
+        findViewById<Button>(R.id.menuButton).setOnClickListener { anchor ->
+            PopupMenu(this, anchor).apply {
+                if (BuildConfig.ACCOUNTS_ENABLED) menu.add(0, 1, 0, "Account")
+                menu.add(0, 2, 1, "Share app")
+                menu.add(0, 3, 2, "App information")
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        1 -> startActivity(Intent(this@MainActivity, AccountActivity::class.java))
+                        2 -> AppSharing.share(this@MainActivity)
+                        3 -> startActivity(Intent(this@MainActivity, AppInfoActivity::class.java))
+                    }
+                    true
+                }
+                show()
             }
-            startActivity(Intent.createChooser(shareIntent, "Share HearClear"))
+        }
+        findViewById<TextView>(R.id.accountStatus).apply {
+            visibility = if (BuildConfig.ACCOUNTS_ENABLED) View.VISIBLE else View.GONE
+            if (BuildConfig.ACCOUNTS_ENABLED) setOnClickListener { startActivity(Intent(this@MainActivity, AccountActivity::class.java)) }
         }
         toggle = findViewById(R.id.startButton)
         toggle.setOnClickListener {
             if (ListeningService.active) {
                 stopService(Intent(this, ListeningService::class.java))
+            } else if (!AccountClient.canListen()) {
+                startActivity(Intent(this, AccountActivity::class.java))
             } else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 11)
             } else startListening()
@@ -60,7 +78,7 @@ class MainActivity : Activity() {
         configureEar(R.id.rightLevelBar, R.id.rightLevelLabel, "rightLevel", "Right")
         configureSlider(findViewById(R.id.leftToneBar), R.id.leftToneLabel, "leftTone", 12, 0, -6, "Left speech tone · ", " dB")
         configureSlider(findViewById(R.id.rightToneBar), R.id.rightToneLabel, "rightTone", 12, 0, -6, "Right speech tone · ", " dB")
-        section(R.id.earsButton, R.id.earsPanel, "More settings", state?.getBoolean("ears") == true)
+        section(R.id.earsButton, R.id.earsPanel, "Sound settings", state?.getBoolean("ears") == true)
         section(R.id.detailsButton, R.id.detailsPanel, "Connection details", state?.getBoolean("details") == true)
         findViewById<Button>(R.id.resetButton).setOnClickListener {
             prefs.reset()
@@ -74,11 +92,6 @@ class MainActivity : Activity() {
             findViewById<SeekBar>(R.id.leftToneBar).progress = 6
             findViewById<SeekBar>(R.id.rightToneBar).progress = 6
             render()
-        }
-        findViewById<Button>(R.id.licensesButton).setOnClickListener {
-            val licence = resources.openRawResource(R.raw.rnnoise_license).bufferedReader().use { it.readText() }
-            android.app.AlertDialog.Builder(this).setTitle("RNNoise • BSD licence")
-                .setMessage(licence).setPositiveButton("Close", null).show()
         }
         render()
     }
@@ -140,6 +153,10 @@ class MainActivity : Activity() {
             .sortedBy { if (it.type in intArrayOf(3,4,22)) 0 else 1 }.firstOrNull()
 
     private fun startListening() {
+        if (!AccountClient.canListen()) {
+            startActivity(Intent(this, AccountActivity::class.java))
+            return
+        }
         val headphones = connectedHeadphones()
         if (headphones == null) {
             Toast.makeText(this, "Connect headphones first.", Toast.LENGTH_SHORT).show()
@@ -164,6 +181,7 @@ class MainActivity : Activity() {
     }
     private fun render() {
         if (!::toggle.isInitialized) return
+        if (BuildConfig.ACCOUNTS_ENABLED) findViewById<TextView>(R.id.accountStatus).text = if (AccountClient.hasSession(this)) AccountClient.summary else "Account · sign in or start your free trial"
         val active = ListeningService.active
         if (active || SystemClock.elapsedRealtime() - startingAt > 3000) startingAt = 0
         val pending = startingAt != 0L
@@ -192,10 +210,11 @@ class MainActivity : Activity() {
         toggle.text = when {
             active -> "Stop listening"
             pending -> "Starting…"
+            !AccountClient.canListen() -> if (AccountClient.hasSession(this)) "Check account access" else "Sign in to start"
             headphones == null -> "Connect headphones to start"
             else -> "Start listening"
         }
-        toggle.isEnabled = active || (!pending && headphones != null)
+        toggle.isEnabled = active || (!pending && (headphones != null || !AccountClient.canListen()))
         toggle.alpha = if (toggle.isEnabled) 1f else 0.55f
         val error = !active && !pending && details.isNotBlank() && !details.startsWith("Stopped") && !details.startsWith("Mic: ")
         findViewById<TextView>(R.id.listeningError).apply {
@@ -215,6 +234,17 @@ class MainActivity : Activity() {
         outState.putBoolean("details", findViewById<View>(R.id.detailsPanel).visibility == View.VISIBLE)
         super.onSaveInstanceState(outState)
     }
+    private fun refreshAccountIfNeeded() {
+        if (!BuildConfig.ACCOUNTS_ENABLED || checkingAccount || !AccountClient.configured() || !AccountClient.hasSession(this) ||
+            SystemClock.elapsedRealtime() - lastAccountCheck < 30000) return
+        checkingAccount = true; lastAccountCheck = SystemClock.elapsedRealtime()
+        accountWorker.execute {
+            runCatching { AccountClient.refresh(applicationContext) }
+            runOnUiThread { checkingAccount = false; if (!isFinishing && !isDestroyed) render() }
+        }
+    }
+    override fun onDestroy() { accountWorker.shutdown(); super.onDestroy() }
     override fun onResume() { super.onResume(); handler.removeCallbacks(poll); handler.post(poll) }
     override fun onPause() { handler.removeCallbacks(poll); super.onPause() }
 }
+

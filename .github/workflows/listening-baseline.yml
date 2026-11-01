@@ -1,7 +1,7 @@
 name: Listening baseline checks
 on:
   push:
-    branches: [main]
+    branches: [main, feature/accounts-trial-payments]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -23,6 +23,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
+      - name: Account service and payment rules
+        run: |
+          python -m pip install -r backend/requirements.txt
+          python -m unittest discover -s backend -v
       - name: Build and test the pinned RNNoise native model and JNI
         run: |
           mkdir -p build/rnnoise-host
@@ -55,3 +59,4 @@ jobs:
             build/listening-comparison/
             build/rnnoise-comparison/
           if-no-files-found: warn
+

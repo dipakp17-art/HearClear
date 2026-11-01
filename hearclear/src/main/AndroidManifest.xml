@@ -5,14 +5,21 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <application android:label="HearClear" android:icon="@drawable/hc_logo" android:theme="@style/HearClearTheme" android:allowBackup="false">
+    <application android:label="HearClear" android:icon="@drawable/hc_logo" android:theme="@style/HearClearTheme" android:allowBackup="false" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".AccountActivity" android:exported="false" android:enabled="${accountsEnabled}" android:configChanges="orientation|screenSize" />
+        <activity android:name=".PaymentActivity" android:exported="false" android:enabled="${accountsEnabled}" android:configChanges="orientation|screenSize" />
+        <activity android:name=".AppInfoActivity" android:exported="false" />
+        <provider android:name=".ApkFileProvider" android:authorities="${applicationId}.sharing" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/sharing_paths" />
+        </provider>
         <service android:name=".ListeningService" android:exported="false" android:foregroundServiceType="microphone" />
     </application>
 </manifest>
+
 

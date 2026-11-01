@@ -1,0 +1,57 @@
+name: Windows account server checks
+on:
+  push:
+    branches: [feature/accounts-trial-payments]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-accounts-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-account-server:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse and set up Windows launcher
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'backend/windows-server.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          & ./backend/windows-server.ps1 -Action setup
+          if ($LASTEXITCODE -ne 0) { throw 'Setup failed' }
+      - name: Run account tests and report through Windows launcher
+        shell: pwsh
+        run: |
+          $serverPython = Join-Path $env:LOCALAPPDATA 'HearClearServer/venv/Scripts/python.exe'
+          & $serverPython -m unittest discover -s backend -v
+          if ($LASTEXITCODE -ne 0) { throw 'Account tests failed' }
+          & ./backend/windows-server.ps1 -Action report
+          if ($LASTEXITCODE -ne 0) { throw 'Report failed' }
+      - name: Smoke test local Windows server
+        shell: pwsh
+        run: |
+          $job = Start-Job -ScriptBlock { param($script) & $script -Action start } -ArgumentList (Join-Path $PWD 'backend/windows-server.ps1')
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 15; $i++) {
+              try {
+                Invoke-RestMethod -Uri 'http://127.0.0.1:8787/v1/status' -Method Post -ContentType 'application/json' -Body '{}' -TimeoutSec 2 | Out-Null
+              } catch {
+                if ($_.Exception.Response.StatusCode.value__ -eq 401) { $ready = $true; break }
+              }
+              Start-Sleep -Seconds 1
+            }
+            if (-not $ready) { Receive-Job $job; throw 'Local server did not return expected unauthorized status' }
+          } finally {
+            Stop-Job $job
+            Remove-Job $job -Force
+          }
