@@ -5,14 +5,40 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import java.util.concurrent.Executors
 
 class ListeningService : Service() {
     private var engine: ListeningEngine? = null
+    private val accessWorker = Executors.newSingleThreadExecutor()
+    private val accessHandler = Handler(Looper.getMainLooper())
+    private var lastCheck = 0L
+    private val accessCheck = object : Runnable {
+        override fun run() {
+            if (!AccountClient.canListen()) {
+                diagnostics = "Account verification ended. Open Account to reconnect or activate."
+                stopSelf()
+                return
+            }
+            if (SystemClock.elapsedRealtime() - lastCheck >= 30000) {
+                lastCheck = SystemClock.elapsedRealtime()
+                accessWorker.execute { runCatching { AccountClient.refresh(applicationContext) } }
+            }
+            accessHandler.postDelayed(this, 1000)
+        }
+    }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "STOP") { stopSelf(); return START_NOT_STICKY }
         if (intent == null) { stopSelf(); return START_NOT_STICKY }
         if (engine != null) return START_NOT_STICKY
+        if (!AccountClient.canListen()) {
+            diagnostics = "Account verification required. Open Account to sign in or activate."
+            stopSelf()
+            return START_NOT_STICKY
+        }
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("listening", "Live listening", NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
@@ -26,9 +52,13 @@ class ListeningService : Service() {
         active = true
         engine = ListeningEngine(applicationContext, ListeningSettings(this),
             { diagnostics = it }, { active = false; stopSelf() }).also { it.start() }
+        lastCheck = 0L
+        accessHandler.post(accessCheck)
         return START_NOT_STICKY
     }
     override fun onDestroy() {
+        accessHandler.removeCallbacks(accessCheck)
+        accessWorker.shutdown()
         engine?.stop()
         engine = null
         active = false
@@ -39,4 +69,5 @@ class ListeningService : Service() {
         @Volatile var diagnostics = "Stopped. Connect headphones, then start."
     }
 }
+
 

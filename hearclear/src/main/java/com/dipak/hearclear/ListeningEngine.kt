@@ -91,6 +91,7 @@ class ListeningEngine(
             input.startRecording()
             player.play()
             while (running) {
+                check(AccountClient.canListen()) { "Account verification expired. Open Account to reconnect or activate." }
                 val wanted = settings.androidNs
                 if (wanted != nsWanted) {
                     nsWanted = wanted
@@ -175,5 +176,6 @@ class ListeningEngine(
         }
     }
 }
+
 
 

@@ -32,6 +32,7 @@ class MainActivity : Activity() {
             }
             startActivity(Intent.createChooser(shareIntent, "Share HearClear"))
         }
+        findViewById<Button>(R.id.accountButton).setOnClickListener { startActivity(Intent(this, AccountActivity::class.java)) }
         toggle = findViewById(R.id.startButton)
         toggle.setOnClickListener {
             if (ListeningService.active) {
@@ -140,6 +141,10 @@ class MainActivity : Activity() {
             .sortedBy { if (it.type in intArrayOf(3,4,22)) 0 else 1 }.firstOrNull()
 
     private fun startListening() {
+        if (!AccountClient.canListen()) {
+            startActivity(Intent(this, AccountActivity::class.java))
+            return
+        }
         val headphones = connectedHeadphones()
         if (headphones == null) {
             Toast.makeText(this, "Connect headphones first.", Toast.LENGTH_SHORT).show()
@@ -193,6 +198,7 @@ class MainActivity : Activity() {
             active -> "Stop listening"
             pending -> "Starting…"
             headphones == null -> "Connect headphones to start"
+            !AccountClient.canListen() -> "Sign in / verify access"
             else -> "Start listening"
         }
         toggle.isEnabled = active || (!pending && headphones != null)
@@ -218,3 +224,4 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); handler.removeCallbacks(poll); handler.post(poll) }
     override fun onPause() { handler.removeCallbacks(poll); super.onPause() }
 }
+

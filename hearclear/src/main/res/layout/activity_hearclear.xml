@@ -16,6 +16,8 @@
                 android:textAllCaps="false"
                 android:contentDescription="Share HearClear app link" />
         </LinearLayout>
+        <Button android:id="@+id/accountButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Account · trial / lifetime access" />
+        
         <LinearLayout style="@style/HcCard" android:background="@drawable/hc_soft">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                 <ImageView android:id="@+id/headphoneIcon" android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/hc_headphones" android:importantForAccessibility="no" />

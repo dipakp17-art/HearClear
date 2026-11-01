@@ -6,12 +6,16 @@ android {
     namespace = "com.dipak.hearclear"
     compileSdk = 35
     ndkVersion = "27.2.12479018"
+    buildFeatures { buildConfig = true }
     defaultConfig {
+        val apiUrl = providers.gradleProperty("hearclearApiUrl").orElse("").get()
+        require(apiUrl.isEmpty() || (apiUrl.startsWith("https://") && apiUrl.matches(Regex("https://[A-Za-z0-9._:/-]+")))) { "hearclearApiUrl must be an HTTPS URL without query/credentials" }
+        buildConfigField("String", "ACCOUNT_API_URL", "\"$apiUrl\"")
         applicationId = "com.dipak.hearclear"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         externalNativeBuild {
             cmake { arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DANDROID_STL=c++_static") }
@@ -31,3 +35,4 @@ android {
     }
 }
 dependencies { testImplementation("junit:junit:4.13.2") }
+
