@@ -76,6 +76,7 @@ class AccountActivity : Activity() {
                 val image = Base64.decode(quote.getString("qr_png"), Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(image, 0, image.size)
                 runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
                     order = quote.getString("id"); uri = quote.getString("upi_uri")
                     qr.setImageBitmap(bitmap)
                     payment.text = "One time: ₹${quote.getInt("amount")}\nPayee: ${quote.getString("payee")}\nUPI: ${quote.getString("upi_id")}\nOrder: $order\n${if (quote.getString("state") == "pending") "Payment submitted; awaiting manual approval. Do not pay again." else "Payment window: 30 minutes from quote creation. Submit the reference before it ends."}"
@@ -130,6 +131,7 @@ class AccountActivity : Activity() {
         work {
             val recoveryCode = AccountClient.authenticate(this, mode, name, pw, code, accepted)
             runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
                 password.text.clear(); recovery.text.clear()
                 if (recoveryCode.isNotEmpty() && !isFinishing) AlertDialog.Builder(this)
                     .setTitle("Save your recovery code")
