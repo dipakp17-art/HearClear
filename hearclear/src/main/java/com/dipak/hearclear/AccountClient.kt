@@ -37,19 +37,27 @@ object AccountClient {
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
         }.generateKey()
     }
-    private fun saveToken(context: Context, token: String) {
+    private fun saveSecret(context: Context, name: String, value: String) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())
-        val raw = cipher.iv + cipher.doFinal(token.toByteArray(Charsets.UTF_8))
-        check(prefs(context).edit().putString("token", Base64.encodeToString(raw, Base64.NO_WRAP)).commit())
+        val raw = cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        check(prefs(context).edit().putString(name, Base64.encodeToString(raw, Base64.NO_WRAP)).commit())
     }
-    private fun token(context: Context): String = runCatching {
-        val raw = Base64.decode(prefs(context).getString("token", ""), Base64.NO_WRAP)
+    private fun secret(context: Context, name: String): String = runCatching {
+        val raw = Base64.decode(prefs(context).getString(name, ""), Base64.NO_WRAP)
         if (raw.size <= 12) return@runCatching ""
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, raw.copyOfRange(0, 12)))
         String(cipher.doFinal(raw.copyOfRange(12, raw.size)), Charsets.UTF_8)
     }.getOrDefault("")
+    private fun token(context: Context) = secret(context, "token")
+    @Synchronized fun pendingRecovery(context: Context) = secret(context, "recovery_pending")
+    @Synchronized fun acknowledgeRecovery(context: Context) { prefs(context).edit().remove("recovery_pending").remove("recovery_account").commit() }
+    fun failureMessage(error: Throwable): String = when (error) {
+        is ApiException -> error.message ?: "Please try again."
+        is org.json.JSONException -> "The server sent an unexpected response. Check the laptop server and tunnel, then retry."
+        else -> AccountNetwork.connectionError(error)
+    }
     fun hasSession(context: Context) = prefs(context).contains("token")
     private fun device(context: Context): String {
         val id = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
@@ -73,19 +81,29 @@ object AccountClient {
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val raw = stream?.bufferedReader()?.use { it.readText() } ?: "{}"
-            val data = JSONObject(raw)
+            val data = runCatching { JSONObject(raw) }.getOrNull()
             if (code !in 200..299) {
-                if (code == 401) { lease.clear(); prefs(context).edit().remove("token").apply() }
-                throw ApiException(data.optString("error"), data.optString("message", "Server request failed ($code)."))
+                if (code == 401 && authenticated) {
+                    lease.clear(); account = ""; paid = false
+                    prefs(context).edit().remove("token").apply()
+                }
+                throw ApiException(data?.optString("error") ?: "http_$code",
+                    data?.optString("message")?.takeIf { it.isNotBlank() } ?: AccountNetwork.httpError(code))
             }
-            return data
+            return data ?: throw ApiException("unexpected_response", "The server returned an unexpected response. Check the laptop server and retry.")
         } finally { connection.disconnect() }
     }
     @Synchronized fun authenticate(context: Context, mode: String, id: String, password: String, recovery: String, consent: Boolean): String {
         val result = request(context, mode, JSONObject().put("account", id).put("password", password)
             .put("device", device(context)).put("recovery_code", recovery).put("consent", consent), false)
         lease.clear()
-        saveToken(context, result.getString("token"))
+        paid = false
+        saveSecret(context, "token", result.getString("token"))
+        if (prefs(context).getString("recovery_account", "") != id) prefs(context).edit().remove("recovery_pending").commit()
+        result.optString("recovery_code").takeIf { it.isNotBlank() }?.let {
+            saveSecret(context, "recovery_pending", it)
+            prefs(context).edit().putString("recovery_account", id).commit()
+        }
         account = id
         runCatching { refresh(context) } // Never lose the one-time recovery code on a status network failure.
         return result.optString("recovery_code")
@@ -103,7 +121,7 @@ object AccountClient {
                 "$account · Trial: ${(left + 3599) / 3600} hours left" else "$account · Trial ended. One-time payment required."
         } catch (e: Exception) {
             // A network failure never extends an existing lease. A rejected session clears it immediately.
-            summary = e.message ?: "Connect to verify account access."
+            summary = failureMessage(e)
             throw e
         }
     }
