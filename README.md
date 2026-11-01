@@ -30,9 +30,9 @@ The install command installs or updates HearClear on the connected device. The A
 
 ## Sharing and updates
 
-The app's Share button shares its Google Play listing URL. The link becomes usable after the app is published on Google Play. Once published, Google Play can deliver approved updates to users who install from the listing. Upload each release with a higher `versionCode`.
+Download installable test APKs from [GitHub Releases](https://github.com/dipakp17-art/HearClear/releases/latest). The app's Share button opens this download page. Android may ask users to allow installation from the browser or file-sharing app they use.
 
-Google Play Console provides aggregate install and active-device metrics after publication. HearClear does not add in-app usage tracking or identify individual users.
+These are manually installed test builds, not Google Play releases. Users must download and install each update themselves. GitHub's download count measures file downloads, not unique installs or active users. HearClear does not add in-app usage tracking or identify individual users.
 
 ## Project documentation
 

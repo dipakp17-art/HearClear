@@ -25,10 +25,10 @@ class MainActivity : Activity() {
         prefs = ListeningSettings(this)
         setContentView(R.layout.activity_hearclear)
         findViewById<Button>(R.id.shareAppButton).setOnClickListener {
-            val storeUrl = "https://play.google.com/store/apps/details?id=$packageName"
+            val downloadUrl = "https://github.com/dipakp17-art/HearClear/releases/latest"
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "Try HearClear for live listening assistance: $storeUrl")
+                putExtra(Intent.EXTRA_TEXT, "Try HearClear for experimental live listening assistance: $downloadUrl")
             }
             startActivity(Intent.createChooser(shareIntent, "Share HearClear"))
         }
@@ -218,4 +218,3 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); handler.removeCallbacks(poll); handler.post(poll) }
     override fun onPause() { handler.removeCallbacks(poll); super.onPause() }
 }
-

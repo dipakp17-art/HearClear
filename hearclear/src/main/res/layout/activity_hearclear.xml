@@ -71,7 +71,7 @@
                 <Button style="@style/HcSectionButton" android:id="@+id/licensesButton" android:text="RNNoise open-source licence" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
-        <TextView style="@style/HcBody" android:textSize="13sp" android:paddingTop="4dp" android:paddingBottom="8dp" android:text="After Google Play publication, check Play Console for aggregate installs and active devices. HearClear does not collect personal usage analytics." />
+        <TextView style="@style/HcBody" android:textSize="13sp" android:paddingTop="4dp" android:paddingBottom="8dp" android:text="Share the GitHub download link. Installs and updates are manual; download counts do not show how many people use the app." />
         <TextView style="@style/HcBody" android:textSize="13sp" android:paddingBottom="8dp" android:text="Experimental assistance, not a fitted hearing aid. Output is not calibrated to safe ear-level loudness. Start low; stop if uncomfortable." />
     </LinearLayout>
 </ScrollView>
