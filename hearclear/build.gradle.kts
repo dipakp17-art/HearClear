@@ -10,8 +10,8 @@ android {
         applicationId = "com.dipak.hearclear"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         externalNativeBuild {
             cmake { arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DANDROID_STL=c++_static") }
@@ -31,4 +31,3 @@ android {
     }
 }
 dependencies { testImplementation("junit:junit:4.13.2") }
-

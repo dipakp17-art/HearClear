@@ -28,6 +28,12 @@ $adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
 If your Android SDK is installed somewhere else, set `ANDROID_HOME` to that directory before building.
 The install command installs or updates HearClear on the connected device. The APK output is `hearclear\build\outputs\apk\debug\hearclear-debug.apk`.
 
+## Sharing and updates
+
+The app's Share button shares its Google Play listing URL. The link becomes usable after the app is published on Google Play. Once published, Google Play can deliver approved updates to users who install from the listing. Upload each release with a higher `versionCode`.
+
+Google Play Console provides aggregate install and active-device metrics after publication. HearClear does not add in-app usage tracking or identify individual users.
+
 ## Project documentation
 
 - [App overview and requirements](docs/HEARCLEAR.md)

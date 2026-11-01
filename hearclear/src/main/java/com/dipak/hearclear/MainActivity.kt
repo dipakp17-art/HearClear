@@ -24,6 +24,14 @@ class MainActivity : Activity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
         prefs = ListeningSettings(this)
         setContentView(R.layout.activity_hearclear)
+        findViewById<Button>(R.id.shareAppButton).setOnClickListener {
+            val storeUrl = "https://play.google.com/store/apps/details?id=$packageName"
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, "Try HearClear for live listening assistance: $storeUrl")
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share HearClear"))
+        }
         toggle = findViewById(R.id.startButton)
         toggle.setOnClickListener {
             if (ListeningService.active) {
@@ -210,5 +218,4 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); handler.removeCallbacks(poll); handler.post(poll) }
     override fun onPause() { handler.removeCallbacks(poll); super.onPause() }
 }
-
 

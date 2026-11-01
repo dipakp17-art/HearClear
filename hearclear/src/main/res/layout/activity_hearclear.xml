@@ -7,6 +7,14 @@
                 <TextView style="@style/HcHeading" android:text="HearClear" android:textSize="17sp" android:paddingBottom="0dp" />
                 <TextView style="@style/HcBody" android:text="Closer to the conversation" android:textSize="14sp" android:visibility="gone" />
             </LinearLayout>
+            <Button
+                android:id="@+id/shareAppButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="Share app"
+                android:textAllCaps="false"
+                android:contentDescription="Share HearClear app link" />
         </LinearLayout>
         <LinearLayout style="@style/HcCard" android:background="@drawable/hc_soft">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
@@ -63,6 +71,7 @@
                 <Button style="@style/HcSectionButton" android:id="@+id/licensesButton" android:text="RNNoise open-source licence" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
-        <TextView style="@style/HcBody" android:textSize="13sp" android:paddingTop="4dp" android:paddingBottom="8dp" android:text="Experimental assistance, not a fitted hearing aid. Output is not calibrated to safe ear-level loudness. Start low; stop if uncomfortable." />
+        <TextView style="@style/HcBody" android:textSize="13sp" android:paddingTop="4dp" android:paddingBottom="8dp" android:text="After Google Play publication, check Play Console for aggregate installs and active devices. HearClear does not collect personal usage analytics." />
+        <TextView style="@style/HcBody" android:textSize="13sp" android:paddingBottom="8dp" android:text="Experimental assistance, not a fitted hearing aid. Output is not calibrated to safe ear-level loudness. Start low; stop if uncomfortable." />
     </LinearLayout>
 </ScrollView>
