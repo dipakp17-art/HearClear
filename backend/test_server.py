@@ -127,6 +127,31 @@ class EntitlementTest(unittest.TestCase):
     def test_payment_not_configured_fails_closed(self):
         self.store.upi = ''
         self.assertCode('payments_unconfigured', lambda: self.store.quote(self.token))
+    def test_another_account_cannot_submit_or_approve_an_order(self):
+        q = self.store.quote(self.token)
+        other = self.store.register(dict(self.data, account='bob1', device='b' * 64))
+        self.assertCode('order_missing', lambda: self.store.receipt(other['token'], dict(order=q['id'], reference='123456789012')))
+        with self.assertRaises(ValueError):
+            self.store.approve(q['id'], 50, '123456789012')
+    def test_concurrent_transfers_leave_exactly_one_server_session(self):
+        def transfer(device):
+            return self.store.login(dict(self.data, device=device * 64, recovery_code=self.created['recovery_code']), transfer=True)['token']
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            tokens = list(pool.map(transfer, ['b', 'c']))
+        valid = 0
+        for token in tokens:
+            try:
+                self.store.status(token)
+                valid += 1
+            except ApiError:
+                pass
+        self.assertEqual(1, valid)
+        self.assertCode('session_expired', lambda: self.store.status(self.token))
+    def test_consent_required_and_quote_remaining_time(self):
+        self.assertCode('consent_required', lambda: self.store.register(dict(self.data, account='bob1', consent=False)))
+        self.assertEqual(1800, self.store.quote(self.token)['remaining_seconds'])
+        self.now += 300
+        self.assertEqual(1500, self.store.quote(self.token)['remaining_seconds'])
     def test_http_qr_and_authorization(self):
         server = Server(('127.0.0.1', 0), Handler)
         server.store = self.store

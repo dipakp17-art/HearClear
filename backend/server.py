@@ -176,6 +176,7 @@ class Store:
                 order = c.execute('SELECT * FROM orders WHERE id=?', (oid,)).fetchone()
             result = dict(order)
             result['upi_uri'] = 'upi://pay?' + urlencode(dict(pa=self.upi, pn=self.payee, am=f"{order['amount']}.00", cu='INR', tn='HearClear ' + order['id']))
+            result['remaining_seconds'] = max(0, order['expires'] - self.now())
             result['payee'] = self.payee
             result['upi_id'] = self.upi
             return result

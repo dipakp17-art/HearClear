@@ -8,6 +8,8 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.os.CountDownTimer
+import android.os.SystemClock
 import android.text.InputType
 import android.util.Base64
 import android.view.View
@@ -31,6 +33,7 @@ class AccountActivity : Activity() {
     private var order = ""
     private var uri = ""
     private var canPay = false
+    private var quoteTimer: CountDownTimer? = null
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         title = "HearClear account"
@@ -68,16 +71,30 @@ class AccountActivity : Activity() {
         button("Refresh access / check approval") { work { AccountClient.refresh(this); AccountClient.summary } }
         button("Show payment / QR") {
             work {
+                val requestedAt = SystemClock.elapsedRealtime()
                 val quote = AccountClient.quote(this)
                 val image = Base64.decode(quote.getString("qr_png"), Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(image, 0, image.size)
                 runOnUiThread {
                     order = quote.getString("id"); uri = quote.getString("upi_uri")
-                    qr.setImageBitmap(bitmap); qr.visibility = View.VISIBLE
+                    qr.setImageBitmap(bitmap)
                     payment.text = "One time: ₹${quote.getInt("amount")}\nPayee: ${quote.getString("payee")}\nUPI: ${quote.getString("upi_id")}\nOrder: $order\n${if (quote.getString("state") == "pending") "Payment submitted; awaiting manual approval. Do not pay again." else "Payment window: 30 minutes from quote creation. Submit the reference before it ends."}"
                     canPay = quote.getString("state") == "quoted"
                     payButton.isEnabled = canPay
-                    submit.isEnabled = quote.getString("state") == "quoted"
+                    submit.isEnabled = canPay
+                    qr.visibility = if (canPay) View.VISIBLE else View.GONE
+                    quoteTimer?.cancel()
+                    if (canPay) {
+                        val remaining = quote.getLong("remaining_seconds") * 1000 - (SystemClock.elapsedRealtime() - requestedAt)
+                        quoteTimer = object : CountDownTimer(remaining.coerceAtLeast(1), 1000) {
+                            override fun onTick(left: Long) {}
+                            override fun onFinish() {
+                                canPay = false; payButton.isEnabled = false; submit.isEnabled = false
+                                qr.visibility = View.GONE
+                                payment.append("\nPayment window ended. If you already paid, contact the owner. Otherwise reopen payment details.")
+                            }
+                        }.start()
+                    }
                 }
                 "Check the payee and amount before paying. A receipt alone does not unlock the app."
             }
@@ -96,6 +113,7 @@ class AccountActivity : Activity() {
         button("Sign out") {
             stopService(Intent(this, ListeningService::class.java))
             AccountClient.clearLease()
+            clearPayment()
             work { AccountClient.logout(this); "Signed out." }
         }
         button("Back to listening") { finish() }
@@ -104,6 +122,7 @@ class AccountActivity : Activity() {
         else if (AccountClient.hasSession(this)) work { AccountClient.refresh(this); AccountClient.summary }
     }
     private fun authenticate(mode: String) {
+        clearPayment()
         val name = id.text.toString().trim()
         val pw = password.text.toString()
         val code = recovery.text.toString().trim()
@@ -121,6 +140,12 @@ class AccountActivity : Activity() {
             AccountClient.summary
         }
     }
+    private fun clearPayment() {
+        quoteTimer?.cancel()
+        order = ""; uri = ""; canPay = false
+        qr.visibility = View.GONE; payment.text = ""
+        payButton.isEnabled = false; submit.isEnabled = false
+    }
     private fun work(action: () -> String) {
         buttons.forEach { it.isEnabled = false }
         status.text = "Please wait…"
@@ -129,6 +154,7 @@ class AccountActivity : Activity() {
             runOnUiThread {
                 if (!isFinishing && !isDestroyed) {
                     buttons.forEach { it.isEnabled = true }
+                    if (AccountClient.paid) clearPayment()
                     payButton.isEnabled = canPay && uri.isNotBlank()
                     submit.isEnabled = canPay && order.isNotBlank()
                     status.text = message
@@ -136,5 +162,5 @@ class AccountActivity : Activity() {
             }
         }
     }
-    override fun onDestroy() { worker.shutdown(); super.onDestroy() }
+    override fun onDestroy() { quoteTimer?.cancel(); worker.shutdown(); super.onDestroy() }
 }
