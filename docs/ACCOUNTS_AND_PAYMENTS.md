@@ -31,11 +31,10 @@ pip install -r backend/requirements.txt
 python -m unittest discover -s backend -v
 export HEARCLEAR_DB=/var/lib/hearclear/hearclear.sqlite3
 source backend/payment.env.example
-export HEARCLEAR_PAYEE='YOUR_RECEIVING_NAME'
 python backend/server.py serve
 ```
 
-The example config contains the owner's supplied receiving UPI ID. Replace `YOUR_RECEIVING_NAME` with the exact recipient name shown by the owner's UPI app. The name is intentionally unset in the example, so checkout stays disabled until both fields are configured. This does not verify ownership or settlement. The server listens only on `127.0.0.1:8787`. Run it with a service manager for restart on reboot. Put an HTTPS reverse proxy in front; never expose this HTTP listener directly. The proxy must **overwrite** `X-Real-IP` with the connecting client's IP, cap request size at 8 KB, enforce connection/request rate limits and timeouts, and avoid request-body/Authorization logging. The in-process limiter adds per-IP and per-account throttling, but is not a substitute for proxy protection. Use a single service process for its limiter; SQLite serializes payment/transfer writes. Test expected load before public release.
+The example config contains the owner-supplied receiving UPI ID and recipient name (`deepk parmar`). Review both against the receiving payment account before deploying. Loading these values does not verify ownership or settlement. The HTTPS service must still be deployed and configured in the APK before account/payment access works. The server listens only on `127.0.0.1:8787`. Run it with a service manager for restart on reboot. Put an HTTPS reverse proxy in front; never expose this HTTP listener directly. The proxy must **overwrite** `X-Real-IP` with the connecting client's IP, cap request size at 8 KB, enforce connection/request rate limits and timeouts, and avoid request-body/Authorization logging. The in-process limiter adds per-IP and per-account throttling, but is not a substitute for proxy protection. Use a single service process for its limiter; SQLite serializes payment/transfer writes. Test expected load before public release.
 
 Example nginx location inside an already configured TLS server (replace domain/certificate configuration separately):
 
