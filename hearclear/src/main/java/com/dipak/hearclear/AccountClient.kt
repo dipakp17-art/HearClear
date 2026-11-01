@@ -25,8 +25,8 @@ object AccountClient {
         private set
     @Volatile var paid = false
         private set
-    fun configured() = BuildConfig.ACCOUNT_API_URL.startsWith("https://")
-    fun canListen() = lease.valid(SystemClock.elapsedRealtime())
+    fun configured() = BuildConfig.ACCOUNTS_ENABLED && BuildConfig.ACCOUNT_API_URL.startsWith("https://")
+    fun canListen() = !BuildConfig.ACCOUNTS_ENABLED || lease.valid(SystemClock.elapsedRealtime())
     fun clearLease() { lease.clear() }
     private fun prefs(context: Context) = context.getSharedPreferences("account", Context.MODE_PRIVATE)
     private fun key(): SecretKey {
@@ -94,6 +94,7 @@ object AccountClient {
         } finally { connection.disconnect() }
     }
     @Synchronized fun authenticate(context: Context, mode: String, id: String, password: String, recovery: String, consent: Boolean): String {
+        check(BuildConfig.ACCOUNTS_ENABLED) { "Accounts are paused during free testing." }
         val result = request(context, mode, JSONObject().put("account", id).put("password", password)
             .put("device", device(context)).put("recovery_code", recovery).put("consent", consent), false)
         lease.clear()
@@ -109,6 +110,10 @@ object AccountClient {
         return result.optString("recovery_code")
     }
     @Synchronized fun refresh(context: Context) {
+        if (!BuildConfig.ACCOUNTS_ENABLED) {
+            summary = "Free testing · no sign-in or payment required"
+            return
+        }
         val start = SystemClock.elapsedRealtime()
         try {
             val data = request(context, "status", JSONObject())

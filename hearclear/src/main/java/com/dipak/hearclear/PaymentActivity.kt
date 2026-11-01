@@ -36,6 +36,11 @@ class PaymentActivity : Activity() {
     private var timer: CountDownTimer? = null
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        if (!BuildConfig.ACCOUNTS_ENABLED) {
+            startActivity(Intent(this, AppInfoActivity::class.java))
+            finish()
+            return
+        }
         val ui = ScreenUi(this, "Payment & activation")
         val summary = ui.card()
         ui.text(summary, "One payment. Lifetime access.", true)
@@ -146,6 +151,6 @@ class PaymentActivity : Activity() {
             }
         }
     }
-    override fun onResume() { super.onResume(); load() }
+    override fun onResume() { super.onResume(); if (BuildConfig.ACCOUNTS_ENABLED) load() }
     override fun onDestroy() { timer?.cancel(); worker.shutdown(); super.onDestroy() }
 }

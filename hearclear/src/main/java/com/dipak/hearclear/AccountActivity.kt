@@ -39,6 +39,11 @@ class AccountActivity : Activity() {
     private var busy = false
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        if (!BuildConfig.ACCOUNTS_ENABLED) {
+            startActivity(Intent(this, AppInfoActivity::class.java))
+            finish()
+            return
+        }
         ui = ScreenUi(this, "Account")
         val summary = ui.card()
         ui.text(summary, "Your listening access", true)
@@ -173,6 +178,7 @@ class AccountActivity : Activity() {
     }
     override fun onResume() {
         super.onResume()
+        if (!BuildConfig.ACCOUNTS_ENABLED) return
         if (AccountClient.hasSession(this)) refresh()
         else { status.text = if (AccountClient.configured()) AccountClient.summary else "Account service is not configured in this build."; render() }
     }

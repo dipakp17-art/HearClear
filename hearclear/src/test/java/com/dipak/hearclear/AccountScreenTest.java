@@ -7,6 +7,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import org.junit.Test;
+import org.junit.Before;
+import static org.junit.Assume.assumeTrue;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
@@ -20,6 +22,7 @@ import java.util.List;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 28)
 public class AccountScreenTest {
+    @Before public void accountScreensOnlyWhenEnabled() { assumeTrue(BuildConfig.ACCOUNTS_ENABLED); }
     private List<View> views(Activity activity) {
         List<View> result = new ArrayList<>();
         walk(activity.findViewById(android.R.id.content), result);

@@ -8,14 +8,18 @@ android {
     ndkVersion = "27.2.12479018"
     buildFeatures { buildConfig = true }
     defaultConfig {
+        // Account/payment enforcement is paused for this unrestricted test release.
+        val accountsEnabled = false
+        buildConfigField("boolean", "ACCOUNTS_ENABLED", accountsEnabled.toString())
+        manifestPlaceholders["accountsEnabled"] = accountsEnabled.toString()
         val apiUrl = providers.gradleProperty("hearclearApiUrl").orElse("").get()
         require(apiUrl.isEmpty() || (apiUrl.startsWith("https://") && apiUrl.matches(Regex("https://[A-Za-z0-9._:/-]+")))) { "hearclearApiUrl must be an HTTPS URL without query/credentials" }
         buildConfigField("String", "ACCOUNT_API_URL", "\"$apiUrl\"")
         applicationId = "com.dipak.hearclear"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         externalNativeBuild {
             cmake { arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DANDROID_STL=c++_static") }

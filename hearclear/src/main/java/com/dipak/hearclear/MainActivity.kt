@@ -30,7 +30,7 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_hearclear)
         findViewById<Button>(R.id.menuButton).setOnClickListener { anchor ->
             PopupMenu(this, anchor).apply {
-                menu.add(0, 1, 0, "Account")
+                if (BuildConfig.ACCOUNTS_ENABLED) menu.add(0, 1, 0, "Account")
                 menu.add(0, 2, 1, "Share app")
                 menu.add(0, 3, 2, "App information")
                 setOnMenuItemClickListener { item ->
@@ -44,7 +44,10 @@ class MainActivity : Activity() {
                 show()
             }
         }
-        findViewById<TextView>(R.id.accountStatus).setOnClickListener { startActivity(Intent(this, AccountActivity::class.java)) }
+        findViewById<TextView>(R.id.accountStatus).apply {
+            visibility = if (BuildConfig.ACCOUNTS_ENABLED) View.VISIBLE else View.GONE
+            if (BuildConfig.ACCOUNTS_ENABLED) setOnClickListener { startActivity(Intent(this@MainActivity, AccountActivity::class.java)) }
+        }
         toggle = findViewById(R.id.startButton)
         toggle.setOnClickListener {
             if (ListeningService.active) {
@@ -178,7 +181,7 @@ class MainActivity : Activity() {
     }
     private fun render() {
         if (!::toggle.isInitialized) return
-        findViewById<TextView>(R.id.accountStatus).text = if (AccountClient.hasSession(this)) AccountClient.summary else "Account · sign in or start your free trial"
+        if (BuildConfig.ACCOUNTS_ENABLED) findViewById<TextView>(R.id.accountStatus).text = if (AccountClient.hasSession(this)) AccountClient.summary else "Account · sign in or start your free trial"
         val active = ListeningService.active
         if (active || SystemClock.elapsedRealtime() - startingAt > 3000) startingAt = 0
         val pending = startingAt != 0L
@@ -232,7 +235,7 @@ class MainActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
     private fun refreshAccountIfNeeded() {
-        if (checkingAccount || !AccountClient.configured() || !AccountClient.hasSession(this) ||
+        if (!BuildConfig.ACCOUNTS_ENABLED || checkingAccount || !AccountClient.configured() || !AccountClient.hasSession(this) ||
             SystemClock.elapsedRealtime() - lastAccountCheck < 30000) return
         checkingAccount = true; lastAccountCheck = SystemClock.elapsedRealtime()
         accountWorker.execute {

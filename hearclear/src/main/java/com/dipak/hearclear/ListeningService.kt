@@ -52,8 +52,10 @@ class ListeningService : Service() {
         active = true
         engine = ListeningEngine(applicationContext, ListeningSettings(this),
             { diagnostics = it }, { active = false; stopSelf() }).also { it.start() }
-        lastCheck = 0L
-        accessHandler.post(accessCheck)
+        if (BuildConfig.ACCOUNTS_ENABLED) {
+            lastCheck = 0L
+            accessHandler.post(accessCheck)
+        }
         return START_NOT_STICKY
     }
     override fun onDestroy() {

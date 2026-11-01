@@ -18,6 +18,20 @@ class AppInfoActivity : Activity() {
             section("AndroidX · Apache License 2.0", resources.openRawResource(R.raw.androidx_license).bufferedReader().use { it.readText() })
             return
         }
+        if (!BuildConfig.ACCOUNTS_ENABLED) {
+            if (!privacyOnly) {
+                section("HearClear ${BuildConfig.VERSION_NAME}", "Free live-listening test version, with separate ear controls and optional noise reduction.")
+                section("Free testing", "No sign-in, payment or 48-hour limit. Anyone can use and share this test version. Account and payment features are paused.")
+                section("Getting started", "Connect headphones, allow microphone access, then start at 1× boost. Place the phone near the person speaking and try one noise filter at a time.")
+                section("Offline use & sharing", "No account server or internet connection is needed for listening. Your laptop can be switched off. Menu → Share app sends this installed APK so other people can test it too. Updates are installed manually.")
+                section("Listening safety", "Experimental assistance, not a medically fitted hearing aid. Output is not calibrated to ear-level loudness. Start low, raise slowly and stop if uncomfortable. Noise reduction will not remove every background sound.")
+            }
+            section("Privacy", "Sound processing stays on your phone. This version makes no account or payment requests and does not upload audio. Settings are stored locally. Account data from an earlier installed version is not used to restrict listening.")
+            ui.button(ui.card(), "Open-source licences") {
+                startActivity(Intent(this, AppInfoActivity::class.java).putExtra("licences", true))
+            }
+            return
+        }
         if (!privacyOnly) {
             section("HearClear ${BuildConfig.VERSION_NAME}", "Live listening from your phone microphone to headphones, with separate left and right levels and optional noise reduction.")
             section("Getting started", "Connect headphones, sign in or create an account, then start at 1× boost. Place the phone near the person speaking. Try one noise filter at a time.")
