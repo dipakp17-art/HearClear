@@ -16,13 +16,16 @@ If needed, install the Android SDK, NDK, and CMake components through Android St
 ```powershell
 git clone https://github.com/dipakp17-art/HearClear.git
 Set-Location .\HearClear
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 .\gradlew.bat :hearclear:assembleDebug :hearclear:testDebugUnitTest --console=plain
-$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+$adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
 & $adb devices
 & $adb install -r ".\hearclear\build\outputs\apk\debug\hearclear-debug.apk"
 & $adb shell monkey -p com.dipak.hearclear 1
 ```
 
+If your Android SDK is installed somewhere else, set `ANDROID_HOME` to that directory before building.
 The install command installs or updates HearClear on the connected device. The APK output is `hearclear\build\outputs\apk\debug\hearclear-debug.apk`.
 
 ## Project documentation
