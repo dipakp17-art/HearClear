@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(hearclear_rnnoise LANGUAGES C CXX)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 17)
+set(RN ${CMAKE_CURRENT_SOURCE_DIR}/third_party/rnnoise)
+set(RN_SOURCES ${RN}/src/denoise.c ${RN}/src/rnn.c ${RN}/src/rnn_data.c
+    ${RN}/src/pitch.c ${RN}/src/kiss_fft.c ${RN}/src/celt_lpc.c)
+add_library(rnnoise_core STATIC ${RN_SOURCES})
+set_target_properties(rnnoise_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(rnnoise_core PUBLIC ${RN}/include PRIVATE ${RN}/src)
+target_compile_definitions(rnnoise_core PRIVATE RNNOISE_BUILD)
+target_compile_options(rnnoise_core PRIVATE -O2 -fno-fast-math)
+add_library(hearclear_rnnoise SHARED rnnoise_jni.cpp)
+target_link_libraries(hearclear_rnnoise PRIVATE rnnoise_core m)
+

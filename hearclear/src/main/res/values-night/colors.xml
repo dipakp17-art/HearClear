@@ -1,0 +1,11 @@
+<resources>
+    <color name="hc_page">#101E1C</color>
+    <color name="hc_card">#1A2C29</color>
+    <color name="hc_ink">#E8F5EE</color>
+    <color name="hc_muted">#B1C6BD</color>
+    <color name="hc_accent">#78D9B9</color>
+    <color name="hc_soft">#25483F</color>
+    <color name="hc_line">#345148</color>
+    <color name="hc_white">#101E1C</color>
+    <color name="hc_error">#FFB5B9</color>
+</resources>

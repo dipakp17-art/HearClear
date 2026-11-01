@@ -1,0 +1,57 @@
+name: Listening baseline checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: listening-baseline-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  android-and-signal-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - name: Build and test the pinned RNNoise native model and JNI
+        run: |
+          mkdir -p build/rnnoise-host
+          RN=hearclear/src/main/cpp/third_party/rnnoise
+          pushd "$RN" >/dev/null
+          sha256sum -c SHA256SUMS
+          popd >/dev/null
+          gcc -O2 -fPIC -shared -I"$RN/include" -I"$RN/src" "$RN"/src/{denoise,rnn,rnn_data,pitch,kiss_fft,celt_lpc}.c -lm -o build/rnnoise-host/librnnoise_core.so
+          python tools/test_rnnoise_native.py build/rnnoise-host/librnnoise_core.so
+          g++ -O2 -fPIC -shared -std=c++17 -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" -I"$RN/include" hearclear/src/main/cpp/rnnoise_jni.cpp -Lbuild/rnnoise-host -lrnnoise_core -Wl,-rpath,'$ORIGIN' -lm -o build/rnnoise-host/libhearclear_rnnoise.so
+      - name: Android build and JUnit checks
+        run: bash gradlew :hearclear:assembleDebug :hearclear:testDebugUnitTest -PrequireNativeRnnoise=true --console=plain --stacktrace
+      - name: Standalone signal comparison
+        run: |
+          mkdir -p build/listening-check
+          javac -d build/listening-check hearclear/src/main/java/com/dipak/hearclear/{SpeechFocusFilter,VoiceLeveler,StereoPcm}.java hearclear/src/test/java/com/dipak/hearclear/{SpeechFocusFilterCheck,VoiceLevelerCheck,StereoPcmCheck,ListeningComparisonCheck}.java
+          java -cp build/listening-check com.dipak.hearclear.SpeechFocusFilterCheck
+          java -cp build/listening-check com.dipak.hearclear.VoiceLevelerCheck
+          java -cp build/listening-check com.dipak.hearclear.StereoPcmCheck
+          java -cp build/listening-check com.dipak.hearclear.ListeningComparisonCheck build/listening-comparison
+          python tools/test_listening_delay.py
+      - name: Preserve test reports and comparison fixtures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: listening-baseline-results
+          path: |
+            hearclear/build/reports/tests/
+            hearclear/build/test-results/
+            build/listening-comparison/
+            build/rnnoise-comparison/
+          if-no-files-found: warn
