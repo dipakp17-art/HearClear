@@ -21,6 +21,7 @@ class PaymentActivity : Activity() {
     private lateinit var timing: TextView
     private lateinit var progress: ProgressBar
     private lateinit var qr: ImageView
+    private lateinit var referenceGroup: LinearLayout
     private lateinit var reference: EditText
     private lateinit var pay: Button
     private lateinit var submit: Button
@@ -52,8 +53,9 @@ class PaymentActivity : Activity() {
             if (canPay()) runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri))) }
                 .onFailure { status.text = "No UPI app could open this payment. Scan the QR with another phone and check the recipient." }
         }
-        reference = ui.field(checkout, "Transaction reference from your payment app")
-        submit = ui.button(checkout, "Submit for verification", true) {
+        referenceGroup = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; checkout.addView(this) }
+        reference = ui.field(referenceGroup, "Transaction reference from your payment app")
+        submit = ui.button(referenceGroup, "Submit for verification", true) {
             val value = reference.text.toString().trim()
             if (!AccountForm.validReference(value)) {
                 reference.error = "Enter 8–40 letters or numbers from the transaction reference"
@@ -80,7 +82,7 @@ class PaymentActivity : Activity() {
         progress.visibility = if (busy) View.VISIBLE else View.GONE
         checkout.visibility = if (signedIn && !AccountClient.paid && order.isNotBlank()) View.VISIBLE else View.GONE
         pay.visibility = if (pending) View.GONE else View.VISIBLE
-        reference.visibility = if (pending) View.GONE else View.VISIBLE
+        referenceGroup.visibility = if (pending) View.GONE else View.VISIBLE
         submit.visibility = if (pending) View.GONE else View.VISIBLE
         pay.isEnabled = canPay(); submit.isEnabled = canPay(); reference.isEnabled = canPay()
         refresh.isEnabled = !busy && signedIn

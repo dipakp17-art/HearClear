@@ -34,9 +34,13 @@ The install command installs or updates HearClear on the connected device. The A
 
 ## Sharing and updates
 
-Download installable test APKs from [GitHub Releases](https://github.com/dipakp17-art/HearClear/releases/latest). The app's Share button opens this download page. Android may ask users to allow installation from the browser or file-sharing app they use.
+Download installable test APKs from [GitHub Releases](https://github.com/dipakp17-art/HearClear/releases/latest). In this account-enabled branch, Menu → Share app sends the currently installed APK, including its configured test endpoint. Public Releases may contain older unrestricted test versions. Android may ask users to allow installation from the browser or file-sharing app they use.
 
 These are manually installed test builds, not Google Play releases. Users must download and install each update themselves. GitHub's download count measures file downloads, not unique installs or active users. The account-enabled build sends account/device entitlement requests and payment references to the configured server; it does not upload audio. See the account data notice and deployment documentation. Older public test APKs remain unrestricted.
+
+## Account screen update (1.3)
+
+Account, sharing and app information are available from the main menu. Sign-in/registration/recovery each have their own form, and checkout is a separate page. See [navigation changes and test plan](docs/ACCOUNT_UI.md).
 
 ## Project documentation
 

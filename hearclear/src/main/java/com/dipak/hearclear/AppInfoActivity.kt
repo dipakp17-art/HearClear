@@ -1,15 +1,22 @@
 package com.dipak.hearclear
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 
 class AppInfoActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        val licencesOnly = intent.getBooleanExtra("licences", false)
         val privacyOnly = intent.getBooleanExtra("privacy", false)
-        val ui = ScreenUi(this, if (privacyOnly) "Account data notice" else "App information")
+        val ui = ScreenUi(this, if (licencesOnly) "Open-source licences" else if (privacyOnly) "Account data notice" else "App information")
         fun section(title: String, body: String) {
             val card = ui.card(); ui.text(card, title, true); ui.text(card, body)
+        }
+        if (licencesOnly) {
+            section("RNNoise · BSD licence", resources.openRawResource(R.raw.rnnoise_license).bufferedReader().use { it.readText() })
+            section("AndroidX · Apache License 2.0", resources.openRawResource(R.raw.androidx_license).bufferedReader().use { it.readText() })
+            return
         }
         if (!privacyOnly) {
             section("HearClear ${BuildConfig.VERSION_NAME}", "Live listening from your phone microphone to headphones, with separate left and right levels and optional noise reduction.")
@@ -19,10 +26,8 @@ class AppInfoActivity : Activity() {
             section("Listening safety", "Experimental assistance, not a medically fitted hearing aid. Sound output is not calibrated to ear-level loudness. Start low, raise slowly, and stop if uncomfortable. Noise reduction may change speech and will not remove every fan or background sound.")
         }
         section("Account data", "The account server stores your account ID, password hash, recovery-code hash, a hashed Android app/device identifier, trial deadline and payment reference/status. Access checks enforce trial timing and replace old-phone sessions. The owner can see registered and paid account counts.\n\nIt does not receive microphone audio, recordings, contacts or precise location. Keep your password and recovery code private. The app temporarily keeps a recovery code encrypted on this phone until you confirm it is saved. Ask the app owner for account help, deletion or recovery support.")
-        if (!privacyOnly) {
-            val licence = resources.openRawResource(R.raw.rnnoise_license).bufferedReader().use { it.readText() }
-            section("RNNoise · BSD licence", licence)
-            section("AndroidX Core", "Used for secure APK file sharing through FileProvider. Licensed under the Apache License, Version 2.0.\nhttps://www.apache.org/licenses/LICENSE-2.0")
+        if (!privacyOnly) ui.button(ui.card(), "Open-source licences") {
+            startActivity(Intent(this, AppInfoActivity::class.java).putExtra("licences", true))
         }
     }
 }

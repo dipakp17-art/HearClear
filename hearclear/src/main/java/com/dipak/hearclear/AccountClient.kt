@@ -51,8 +51,8 @@ object AccountClient {
         String(cipher.doFinal(raw.copyOfRange(12, raw.size)), Charsets.UTF_8)
     }.getOrDefault("")
     private fun token(context: Context) = secret(context, "token")
-    @Synchronized fun pendingRecovery(context: Context) = secret(context, "recovery_pending")
-    @Synchronized fun acknowledgeRecovery(context: Context) { prefs(context).edit().remove("recovery_pending").remove("recovery_account").commit() }
+    fun pendingRecovery(context: Context) = secret(context, "recovery_pending")
+    fun acknowledgeRecovery(context: Context) { prefs(context).edit().remove("recovery_pending").remove("recovery_account").apply() }
     fun failureMessage(error: Throwable): String = when (error) {
         is ApiException -> error.message ?: "Please try again."
         is org.json.JSONException -> "The server sent an unexpected response. Check the laptop server and tunnel, then retry."

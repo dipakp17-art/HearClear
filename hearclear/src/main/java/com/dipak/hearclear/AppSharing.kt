@@ -18,7 +18,11 @@ object AppSharing {
             val result = runCatching {
                 val directory = File(activity.cacheDir, "shared_apk").apply { mkdirs() }
                 val apk = File(directory, "HearClear-${BuildConfig.VERSION_NAME}.apk")
-                File(activity.applicationInfo.sourceDir).copyTo(apk, overwrite = true)
+                val staging = File.createTempFile("package-", ".tmp", directory)
+                try {
+                    File(activity.applicationInfo.sourceDir).copyTo(staging, overwrite = true)
+                    check(staging.renameTo(apk)) { "Could not prepare shared APK" }
+                } finally { staging.delete() }
                 FileProvider.getUriForFile(activity, activity.packageName + ".sharing", apk)
             }
             activity.runOnUiThread {
